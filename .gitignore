@@ -1,0 +1,9 @@
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+publish/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,19 @@
+﻿@page "/counter"
+@rendermode InteractiveServer
+@using BlazorApp1.Services
+@inject CounterService CounterState
+
+<PageTitle>Counter</PageTitle>
+
+<h1>Counter</h1>
+
+<p role="status">Current count: @CounterState.CurrentCount</p>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+
+@code {
+    private void IncrementCount()
+    {
+        CounterState.Increment();
+    }
+}
