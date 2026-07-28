@@ -1,0 +1,101 @@
+# ============================================================================
+#  CI Pipeline - Build & Test a .NET 10 Blazor app
+#  Friendly, interactive, and fully commented for learning GitHub Actions.
+# ============================================================================
+
+name: CI Pipeline 🚀   # Shows up in the Actions tab
+
+# ----------------------------------------------------------------------------
+# TRIGGERS: when should this workflow run?
+# ----------------------------------------------------------------------------
+on:
+  push:
+    branches: [ master ]        # run on every push to master
+  pull_request:
+    branches: [ master ]        # run on PRs targeting master
+
+  # INTERACTIVE trigger: adds a "Run workflow" button in the Actions tab.
+  # The 'inputs' below become a little form the user fills in before running.
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: 'Build configuration'
+        type: choice            # renders as a dropdown
+        options:
+          - Release
+          - Debug
+        default: Release
+      run_tests:
+        description: 'Run unit tests?'
+        type: boolean           # renders as a checkbox
+        default: true
+      dotnet_version:
+        description: '.NET SDK version'
+        type: string            # renders as a text box
+        default: '10.0.x'
+
+# ----------------------------------------------------------------------------
+# CONCURRENCY: if you push twice quickly, cancel the older run. Saves minutes.
+# ----------------------------------------------------------------------------
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# ----------------------------------------------------------------------------
+# ENV: reusable variables. Change a value once, used everywhere below.
+# 'inputs.*' only exist for manual runs, so we fall back to defaults with ||.
+# ----------------------------------------------------------------------------
+env:
+  BUILD_CONFIGURATION: ${{ github.event.inputs.configuration || 'Release' }}
+  DOTNET_VERSION: ${{ github.event.inputs.dotnet_version || '10.0.x' }}
+  DOTNET_NOLOGO: true                     # quieter dotnet output
+  DOTNET_CLI_TELEMETRY_OPTOUT: true       # no telemetry noise
+
+jobs:
+  build-and-test:
+    name: 🛠️ Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 📦 Restore dependencies
+        run: dotnet restore
+
+      - name: 🔨 Build (${{ env.BUILD_CONFIGURATION }})
+        run: dotnet build --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore
+
+      # This step only runs if the user left "run_tests" checked (or it's an
+      # automatic push/PR run, where inputs.run_tests is empty -> defaults true).
+      - name: 🧪 Run tests
+        if: ${{ github.event.inputs.run_tests != 'false' }}
+        run: dotnet test --configuration ${{ env.BUILD_CONFIGURATION }} --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+
+      # Upload the test results so you can download them from the run page.
+      # 'if: always()' means: attach them even if the tests failed.
+      - name: 📤 Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/test-results.trx'
+          if-no-files-found: ignore
+
+      # Write a friendly summary that appears on the run's Summary page.
+      - name: 📝 Job summary
+        if: always()
+        run: |
+          echo "## CI Pipeline Result 🚀" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Setting | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Configuration | ${{ env.BUILD_CONFIGURATION }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| .NET version | ${{ env.DOTNET_VERSION }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch | ${{ github.ref_name }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Triggered by | ${{ github.actor }} |" >> "$GITHUB_STEP_SUMMARY"

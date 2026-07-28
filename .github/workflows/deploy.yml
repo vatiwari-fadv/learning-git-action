@@ -1,0 +1,58 @@
+# ============================================================================
+#  Deploy Pipeline (TEMPLATE) - Publish the Blazor app to Azure App Service
+#  This is a learning template. It is safe to keep in the repo: it only runs
+#  when you trigger it manually, and it needs a secret before it can deploy.
+# ============================================================================
+
+name: Deploy to Azure 🌐
+
+# SETUP (one-time) before this works:
+#   1. Create an Azure App Service (Linux, .NET 10).
+#   2. Download its "Publish Profile".
+#   3. GitHub repo > Settings > Secrets and variables > Actions >
+#      New secret: AZURE_WEBAPP_PUBLISH_PROFILE  (paste the profile).
+#   4. Set AZURE_WEBAPP_NAME below to your App Service name.
+
+on:
+  workflow_dispatch:            # manual only for now (safe while learning)
+  # Uncomment to auto-deploy after every push to master:
+  # push:
+  #   branches: [ master ]
+
+env:
+  AZURE_WEBAPP_NAME: your-app-service-name   # <-- change this
+  DOTNET_VERSION: '10.0.x'
+  PUBLISH_DIR: ./publish
+
+jobs:
+  deploy:
+    name: 🚀 Build, Publish & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 📦 Restore
+        run: dotnet restore
+
+      - name: 🔨 Build (Release)
+        run: dotnet build --configuration Release --no-restore
+
+      - name: 🧪 Test
+        run: dotnet test --configuration Release --no-build --verbosity normal
+
+      - name: 📦 Publish
+        run: dotnet publish BlazorApp1/BlazorApp1.csproj --configuration Release --output ${{ env.PUBLISH_DIR }}
+
+      - name: 🌐 Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.PUBLISH_DIR }}
